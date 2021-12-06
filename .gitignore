@@ -12,3 +12,4 @@
 /.web-server-pid
 /config/jwt/*.pem
 /.idea/
+/config/jwt

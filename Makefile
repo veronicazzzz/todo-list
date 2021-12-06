@@ -25,3 +25,6 @@ set-permissions-wo-sudo:
 cache-prod:
 	rm -rf .env.*php
 	$(CONSOLE) cache:clear --env=prod
+
+keypair:
+	php bin/console lexik:jwt:generate-keypair

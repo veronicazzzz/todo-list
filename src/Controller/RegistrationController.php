@@ -4,48 +4,71 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Form\UserType;
+use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class RegistrationController extends AbstractController
 {
+    /**
+     * @var UserPasswordEncoderInterface
+     */
     private $passwordEncoder;
 
+    /**
+     * @param UserPasswordEncoderInterface $passwordEncoder
+     */
     public function __construct(UserPasswordEncoderInterface $passwordEncoder)
     {
         $this->passwordEncoder = $passwordEncoder;
     }
 
     /**
-     * @Route("/registration", name="registration")
+     * @param Request $request
+     * @return JsonResponse
      */
-    public function index(Request $request)
+    public function registrationAction(Request $request): JsonResponse
     {
         $user = new User();
 
+        $content = json_decode($request->getContent(), true);
+
         $form = $this->createForm(UserType::class, $user);
 
-        $form->handleRequest($request);
+        $form->submit($content);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            // Encode the new users password
+        try {
+            if (!$user->getPassword()) {
+                throw new RuntimeException();
+            }
+
             $user->setPassword($this->passwordEncoder->encodePassword($user, $user->getPassword()));
 
-            // Set their role
             $user->setRoles(['ROLE_USER']);
 
-            // Save
             $em = $this->getDoctrine()->getManager();
             $em->persist($user);
             $em->flush();
 
-            return $this->redirectToRoute('app_login');
+            return new JsonResponse(
+                [
+                    'id' => $user->getId(),
+                    'name' => $user->getName(),
+                    'email' => $user->getEmail()
+                ],
+                Response::HTTP_CREATED
+            );
+        } catch (\Throwable $e) {
+            return new JsonResponse(
+                [
+                    'code' => '400',
+                    'message' => 'Bad request'
+                ],
+                Response::HTTP_BAD_REQUEST
+            );
         }
-
-        return $this->render('registration/index.html.twig', [
-            'form' => $form->createView(),
-        ]);
     }
 }
